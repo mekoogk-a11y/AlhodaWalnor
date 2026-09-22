@@ -1,0 +1,6 @@
+{
+  "name": "الهدى والنور",
+  "description": "منصة علمية إسلامية متخصصة في الرد العلمي الموثق على الشبهات والاعتراضات بالقرآن والسنة وأقوال علماء أهل السنة والجماعة",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
