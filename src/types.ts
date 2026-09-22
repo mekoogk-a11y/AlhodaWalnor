@@ -83,4 +83,13 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   modelNotice?: string;
+  citations?: {
+    id: string;
+    title: string;
+    author: string;
+    reference: string;
+    type: string;
+    snippet: string;
+  }[];
+  grounded?: boolean;
 }

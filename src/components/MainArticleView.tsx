@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { mainArticleIntro, mainArticleSections } from "../data/mainArticle";
 import { ArticleSection } from "../types";
 import {
@@ -20,14 +20,45 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowRight,
+  Volume2,
 } from "lucide-react";
 import { ReferencesModal } from "./ReferencesModal";
+import { ShareModal } from "./ShareModal";
+import { ttsService } from "../utils/audioTTS";
+import { saveBookmark, removeBookmark, isBookmarked } from "../utils/bookmarks";
 
 export const MainArticleView: React.FC = () => {
   const [selectedSectionModal, setSelectedSectionModal] = useState<ArticleSection | null>(null);
   const [fontSizeOffset, setFontSizeOffset] = useState<number>(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
+  const [savedSectionIds, setSavedSectionIds] = useState<Record<string, boolean>>({});
+  const [shareData, setShareData] = useState<{ title: string; text: string } | null>(null);
+
+  useEffect(() => {
+    const map: Record<string, boolean> = {};
+    mainArticleSections.forEach((s) => {
+      map[s.id] = isBookmarked(`sec-${s.id}`);
+    });
+    setSavedSectionIds(map);
+  }, []);
+
+  const handleToggleBookmarkSection = (sec: ArticleSection) => {
+    const bookmarkId = `sec-${sec.id}`;
+    if (savedSectionIds[sec.id]) {
+      removeBookmark(bookmarkId);
+      setSavedSectionIds((prev) => ({ ...prev, [sec.id]: false }));
+    } else {
+      saveBookmark({
+        id: bookmarkId,
+        title: `المبحث ${sec.number}: ${sec.title}`,
+        discipline: "المقال الموسوعي",
+        reference: "دراسة نفي التعارض عن القرآن الكريم",
+        summary: sec.summary,
+      });
+      setSavedSectionIds((prev) => ({ ...prev, [sec.id]: true }));
+    }
+  };
 
   const handleCopyLink = () => {
     navigator.clipboard?.writeText(window.location.href);
@@ -80,14 +111,24 @@ export const MainArticleView: React.FC = () => {
               </button>
             </div>
 
+            {/* TTS Audio */}
+            <button
+              onClick={() => ttsService.speak(mainArticleIntro.preamble, mainArticleIntro.title)}
+              className="p-2 bg-[#FAF7F2] hover:bg-[#F3EFE9] border border-[#E2DACF] rounded-xl text-[#0F1D36] text-xs flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
+              title="استمع للمقدمة صوتياً"
+            >
+              <Volume2 className="w-4 h-4 text-[#B8934C]" />
+              <span className="hidden sm:inline">قراءة صوتية</span>
+            </button>
+
             {/* Share / Copy */}
             <button
-              onClick={handleCopyLink}
+              onClick={() => setShareData({ title: mainArticleIntro.title, text: mainArticleIntro.preamble })}
               className="p-2 bg-[#FAF7F2] hover:bg-[#F3EFE9] border border-[#E2DACF] rounded-xl text-[#0F1D36] text-xs flex items-center gap-1.5 font-medium transition-colors cursor-pointer"
               title="مشاركة رابط البحث"
             >
-              {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-              <span className="hidden sm:inline">{copiedLink ? "تم النسخ" : "مشاركة"}</span>
+              <Share2 className="w-4 h-4" />
+              <span className="hidden sm:inline">مشاركة</span>
             </button>
           </div>
         </div>
@@ -164,13 +205,46 @@ export const MainArticleView: React.FC = () => {
           >
             {/* Section Header */}
             <div className="border-b border-[#F0EAE1] pb-5">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="w-9 h-9 rounded-xl bg-[#0F1D36] text-[#FDFBF7] flex items-center justify-center text-sm font-bold font-quran shadow-xs">
-                  {section.number}
-                </span>
-                <h2 className="text-xl sm:text-2xl font-bold text-[#0F1D36] font-quran leading-snug">
-                  {section.title}
-                </h2>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-xl bg-[#0F1D36] text-[#FDFBF7] flex items-center justify-center text-sm font-bold font-quran shadow-xs shrink-0">
+                    {section.number}
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-bold text-[#0F1D36] font-quran leading-snug">
+                    {section.title}
+                  </h2>
+                </div>
+
+                <div className="flex items-center gap-1.5 self-start sm:self-auto">
+                  <button
+                    onClick={() => ttsService.speak(section.scholarlyAnswer, section.title)}
+                    className="p-2 rounded-xl text-[#465A73] hover:text-[#0F1D36] hover:bg-[#FAF7F2] border border-[#E2DACF] transition-colors cursor-pointer text-xs flex items-center gap-1"
+                    title="استمع للمبحث صوتياً"
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-[#B8934C]" />
+                    <span className="hidden sm:inline">قراءة</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleToggleBookmarkSection(section)}
+                    className={`p-2 rounded-xl border transition-colors cursor-pointer text-xs flex items-center gap-1 ${
+                      savedSectionIds[section.id]
+                        ? "bg-[#C5A265]/15 border-[#C5A265] text-[#8C6D34]"
+                        : "border-[#E2DACF] text-[#465A73] hover:bg-[#FAF7F2]"
+                    }`}
+                    title={savedSectionIds[section.id] ? "إزالة من المفضلة" : "حفظ للمفضلة"}
+                  >
+                    <Bookmark className={`w-3.5 h-3.5 ${savedSectionIds[section.id] ? "fill-current" : ""}`} />
+                  </button>
+
+                  <button
+                    onClick={() => setShareData({ title: section.title, text: section.scholarlyAnswer })}
+                    className="p-2 rounded-xl border border-[#E2DACF] text-[#465A73] hover:text-[#0F1D36] hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+                    title="مشاركة المبحث"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
               {section.subtitle && (
                 <p className="text-xs sm:text-sm text-[#5C7089] pr-12 font-medium">
@@ -371,6 +445,16 @@ export const MainArticleView: React.FC = () => {
           onClose={() => setSelectedSectionModal(null)}
           title={selectedSectionModal.title}
           references={selectedSectionModal.references}
+        />
+      )}
+
+      {/* Share Modal */}
+      {shareData && (
+        <ShareModal
+          isOpen={true}
+          onClose={() => setShareData(null)}
+          title={shareData.title}
+          text={shareData.text}
         />
       )}
     </div>

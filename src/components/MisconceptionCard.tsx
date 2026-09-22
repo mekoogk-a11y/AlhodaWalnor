@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MisconceptionItem } from "../types";
 import {
   BookOpen,
@@ -14,8 +14,13 @@ import {
   Share2,
   Copy,
   Check,
+  Volume2,
+  Bookmark,
 } from "lucide-react";
 import { ReferencesModal } from "./ReferencesModal";
+import { ShareModal } from "./ShareModal";
+import { ttsService } from "../utils/audioTTS";
+import { saveBookmark, removeBookmark, isBookmarked } from "../utils/bookmarks";
 
 interface MisconceptionCardProps {
   item: MisconceptionItem;
@@ -29,6 +34,29 @@ export const MisconceptionCard: React.FC<MisconceptionCardProps> = ({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [showReferences, setShowReferences] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+
+  useEffect(() => {
+    setIsSaved(isBookmarked(`misc-${item.id}`));
+  }, [item.id]);
+
+  const handleToggleBookmark = () => {
+    const bookmarkId = `misc-${item.id}`;
+    if (isSaved) {
+      removeBookmark(bookmarkId);
+      setIsSaved(false);
+    } else {
+      saveBookmark({
+        id: bookmarkId,
+        title: item.title,
+        discipline: "شبهات وردود",
+        reference: "موسوعة الرد على الشبهات",
+        summary: item.summary,
+      });
+      setIsSaved(true);
+    }
+  };
 
   const handleCopyCitation = () => {
     const textToCopy = `الموضوع: ${item.title}\nالخلاصة: ${item.summary}\nالمصدر: منصة الهدى والنور - https://al-huda-wa-an-noor.islamic`;
@@ -64,14 +92,47 @@ export const MisconceptionCard: React.FC<MisconceptionCardProps> = ({
           </h3>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+        <div className="flex items-center gap-1.5 shrink-0 self-end md:self-center">
+          {/* TTS Audio */}
+          <button
+            onClick={() => ttsService.speak(item.scientificAnswer, item.title)}
+            className="p-2 rounded-lg border border-[#E2DACF] hover:bg-[#FAF7F2] text-[#465A73] transition-colors cursor-pointer text-xs flex items-center gap-1"
+            title="استمع للرد العلمي صوتياً"
+          >
+            <Volume2 className="w-4 h-4 text-[#B8934C]" />
+            <span className="hidden sm:inline">قراءة</span>
+          </button>
+
+          {/* Bookmark */}
+          <button
+            onClick={handleToggleBookmark}
+            className={`p-2 rounded-lg border transition-colors cursor-pointer text-xs flex items-center gap-1 ${
+              isSaved
+                ? "bg-[#C5A265]/15 border-[#C5A265] text-[#8C6D34]"
+                : "border-[#E2DACF] text-[#465A73] hover:bg-[#FAF7F2]"
+            }`}
+            title={isSaved ? "إزالة من المفضلة" : "إضافة للمفضلة"}
+          >
+            <Bookmark className={`w-4 h-4 ${isSaved ? "fill-current" : ""}`} />
+          </button>
+
+          {/* Share */}
+          <button
+            onClick={() => setShareOpen(true)}
+            className="p-2 rounded-lg border border-[#E2DACF] hover:bg-[#FAF7F2] text-[#465A73] transition-colors cursor-pointer"
+            title="مشاركة الشبهة والرد"
+          >
+            <Share2 className="w-4 h-4" />
+          </button>
+
+          {/* Copy */}
           <button
             onClick={handleCopyCitation}
             className="p-2 rounded-lg border border-[#E2DACF] hover:bg-[#FAF7F2] text-[#465A73] transition-colors cursor-pointer text-xs flex items-center gap-1.5 font-medium"
             title="نسخ الخلاصة والتوثيق"
           >
             {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-            <span>{copied ? "تم النسخ" : "نسخ التوثيق"}</span>
+            <span className="hidden sm:inline">{copied ? "تم النسخ" : "نسخ"}</span>
           </button>
 
           <button
@@ -277,6 +338,16 @@ export const MisconceptionCard: React.FC<MisconceptionCardProps> = ({
         title={item.title}
         references={item.references}
       />
+
+      {/* Share Modal */}
+      {shareOpen && (
+        <ShareModal
+          isOpen={true}
+          onClose={() => setShareOpen(false)}
+          title={item.title}
+          text={item.scientificAnswer}
+        />
+      )}
     </article>
   );
 };

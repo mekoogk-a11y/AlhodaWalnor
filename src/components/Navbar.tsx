@@ -1,13 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Logo } from "./Logo";
-import { Sparkles, BookOpen, Menu, X, Shield, Search, Home } from "lucide-react";
+import {
+  Sparkles,
+  BookOpen,
+  Menu,
+  X,
+  Shield,
+  Search,
+  Home,
+  Bookmark,
+  ShieldAlert,
+  UserCheck,
+} from "lucide-react";
 import { CategoryId } from "../types";
+import { getBookmarks } from "../utils/bookmarks";
+
+export type NavTabType = "main-article" | "directory" | "search" | "about";
 
 interface NavbarProps {
-  currentTab: "main-article" | "directory" | "about";
-  onTabChange: (tab: "main-article" | "directory" | "about") => void;
+  currentTab: NavTabType;
+  onTabChange: (tab: NavTabType) => void;
   onOpenAssistant: () => void;
   onSelectCategory: (id: CategoryId) => void;
+  onOpenBookmarks: () => void;
+  onOpenAdmin: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -15,11 +31,21 @@ export const Navbar: React.FC<NavbarProps> = ({
   onTabChange,
   onOpenAssistant,
   onSelectCategory,
+  onOpenBookmarks,
+  onOpenAdmin,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
+
+  useEffect(() => {
+    const updateCount = () => setBookmarkCount(getBookmarks().length);
+    updateCount();
+    window.addEventListener("bookmarks-updated", updateCount);
+    return () => window.removeEventListener("bookmarks-updated", updateCount);
+  }, []);
 
   return (
-    <nav className="sticky top-0 z-40 bg-[#FAF7F2]/90 backdrop-blur-md border-b border-[#EAE3D9] transition-all">
+    <nav className="sticky top-0 z-40 bg-[#FAF7F2]/95 backdrop-blur-md border-b border-[#EAE3D9] transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-18">
           {/* Logo compact */}
@@ -31,17 +57,17 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden md:flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-[#E2DACF]">
+          <div className="hidden lg:flex items-center gap-1 bg-white p-1 rounded-2xl border border-[#E2DACF]">
             <button
               onClick={() => onTabChange("main-article")}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                 currentTab === "main-article"
                   ? "bg-[#0F1D36] text-[#FAF7F2] shadow-2xs"
                   : "text-[#465A73] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
               }`}
             >
               <Home className="w-3.5 h-3.5" />
-              <span>البحث الرئيسي (تناقضات القرآن)</span>
+              <span>تناقضات القرآن (11 مبحثاً)</span>
             </button>
 
             <button
@@ -49,7 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 onTabChange("directory");
                 onSelectCategory("all");
               }}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                 currentTab === "directory"
                   ? "bg-[#0F1D36] text-[#FAF7F2] shadow-2xs"
                   : "text-[#465A73] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
@@ -60,31 +86,80 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             <button
+              onClick={() => onTabChange("search")}
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+                currentTab === "search"
+                  ? "bg-[#0F1D36] text-[#FAF7F2] shadow-2xs"
+                  : "text-[#465A73] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
+              }`}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>البحث المعرفي الشامل</span>
+            </button>
+
+            <button
               onClick={() => onTabChange("about")}
-              className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                 currentTab === "about"
                   ? "bg-[#0F1D36] text-[#FAF7F2] shadow-2xs"
                   : "text-[#465A73] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
               }`}
             >
               <Shield className="w-3.5 h-3.5" />
-              <span>المنهج العلمي والمصادر</span>
+              <span>المنهج والمصادر</span>
             </button>
           </div>
 
-          {/* Smart Assistant CTA */}
-          <div className="hidden sm:flex items-center gap-3">
+          {/* Action CTAs */}
+          <div className="hidden sm:flex items-center gap-2">
+            {/* Bookmarks Button */}
+            <button
+              onClick={onOpenBookmarks}
+              className="p-2.5 rounded-xl bg-white border border-[#E2DACF] text-[#465A73] hover:text-[#0F1D36] hover:bg-[#FAF7F2] transition-colors cursor-pointer relative"
+              title="المفضلة وقائمة القراءة"
+            >
+              <Bookmark className="w-4 h-4" />
+              {bookmarkCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#B8934C] text-white text-[9px] font-bold flex items-center justify-center font-mono">
+                  {bookmarkCount}
+                </span>
+              )}
+            </button>
+
+            {/* Admin Dashboard */}
+            <button
+              onClick={onOpenAdmin}
+              className="p-2.5 rounded-xl bg-white border border-[#E2DACF] text-[#465A73] hover:text-[#0F1D36] hover:bg-[#FAF7F2] transition-colors cursor-pointer"
+              title="لوحة الإشراف والتحقيق العلمي"
+            >
+              <UserCheck className="w-4 h-4" />
+            </button>
+
+            {/* Smart Assistant CTA */}
             <button
               onClick={onOpenAssistant}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#0F1D36] to-[#1E3A5F] hover:from-[#152744] hover:to-[#254673] text-[#FDE68A] text-xs sm:text-sm font-bold flex items-center gap-2 border border-[#C5A265]/40 shadow-xs transition-all cursor-pointer group"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#0F1D36] to-[#1E3A5F] hover:from-[#152744] hover:to-[#254673] text-[#FDE68A] text-xs font-bold flex items-center gap-1.5 border border-[#C5A265]/40 shadow-xs transition-all cursor-pointer group"
             >
               <Sparkles className="w-4 h-4 text-[#FDE68A] group-hover:rotate-12 transition-transform" />
-              <span>مساعد الهدى والنور الذكي</span>
+              <span>المساعد العلمي</span>
             </button>
           </div>
 
-          {/* Mobile hamburger */}
-          <div className="flex md:hidden items-center gap-2">
+          {/* Mobile buttons */}
+          <div className="flex lg:hidden items-center gap-2">
+            <button
+              onClick={onOpenBookmarks}
+              className="p-2 rounded-xl bg-white border border-[#E2DACF] text-[#0F1D36] relative cursor-pointer"
+              title="المفضلة"
+            >
+              <Bookmark className="w-4 h-4" />
+              {bookmarkCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#B8934C] text-white text-[9px] font-bold flex items-center justify-center font-mono">
+                  {bookmarkCount}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={onOpenAssistant}
               className="p-2 rounded-xl bg-[#0F1D36] text-[#FDE68A] text-xs font-bold flex items-center gap-1 cursor-pointer"
@@ -104,18 +179,22 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Mobile Drawer Menu */}
+      {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-[#EAE3D9] p-4 space-y-2 animate-in slide-in-from-top-2 duration-150">
+        <div className="lg:hidden bg-white border-b border-[#EAE3D9] px-4 py-4 space-y-2 shadow-lg animate-in slide-in-from-top-2 duration-200">
           <button
             onClick={() => {
               onTabChange("main-article");
               setMobileMenuOpen(false);
             }}
-            className="w-full text-right px-4 py-3 rounded-xl text-sm font-semibold bg-[#FAF7F2] text-[#0F1D36] flex items-center gap-2"
+            className={`w-full text-right px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+              currentTab === "main-article"
+                ? "bg-[#0F1D36] text-[#FAF7F2]"
+                : "text-[#2A3B50] hover:bg-[#FAF7F2]"
+            }`}
           >
-            <Home className="w-4 h-4 text-[#B8934C]" />
-            <span>البحث الرئيسي (تناقضات القرآن)</span>
+            <Home className="w-4 h-4" />
+            <span>تناقضات القرآن (11 مبحثاً)</span>
           </button>
 
           <button
@@ -124,10 +203,29 @@ export const Navbar: React.FC<NavbarProps> = ({
               onSelectCategory("all");
               setMobileMenuOpen(false);
             }}
-            className="w-full text-right px-4 py-3 rounded-xl text-sm font-semibold text-[#3D526C] hover:bg-[#FAF7F2] flex items-center gap-2"
+            className={`w-full text-right px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+              currentTab === "directory"
+                ? "bg-[#0F1D36] text-[#FAF7F2]"
+                : "text-[#2A3B50] hover:bg-[#FAF7F2]"
+            }`}
           >
-            <BookOpen className="w-4 h-4 text-[#B8934C]" />
+            <BookOpen className="w-4 h-4" />
             <span>موسوعة الشبهات والردود</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onTabChange("search");
+              setMobileMenuOpen(false);
+            }}
+            className={`w-full text-right px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+              currentTab === "search"
+                ? "bg-[#0F1D36] text-[#FAF7F2]"
+                : "text-[#2A3B50] hover:bg-[#FAF7F2]"
+            }`}
+          >
+            <Search className="w-4 h-4" />
+            <span>محرك البحث المعرفي الشامل</span>
           </button>
 
           <button
@@ -135,22 +233,28 @@ export const Navbar: React.FC<NavbarProps> = ({
               onTabChange("about");
               setMobileMenuOpen(false);
             }}
-            className="w-full text-right px-4 py-3 rounded-xl text-sm font-semibold text-[#3D526C] hover:bg-[#FAF7F2] flex items-center gap-2"
+            className={`w-full text-right px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+              currentTab === "about"
+                ? "bg-[#0F1D36] text-[#FAF7F2]"
+                : "text-[#2A3B50] hover:bg-[#FAF7F2]"
+            }`}
           >
-            <Shield className="w-4 h-4 text-[#B8934C]" />
+            <Shield className="w-4 h-4" />
             <span>المنهج العلمي والمصادر</span>
           </button>
 
-          <button
-            onClick={() => {
-              onOpenAssistant();
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-right px-4 py-3 rounded-xl text-sm font-bold bg-[#0F1D36] text-[#FDE68A] flex items-center gap-2"
-          >
-            <Sparkles className="w-4 h-4 text-[#FDE68A]" />
-            <span>مساعد الهدى والنور الذكي</span>
-          </button>
+          <div className="pt-2 border-t border-[#F0EAE1] flex gap-2">
+            <button
+              onClick={() => {
+                onOpenAdmin();
+                setMobileMenuOpen(false);
+              }}
+              className="flex-1 py-2 px-3 rounded-xl bg-[#FAF7F2] text-[#0F1D36] text-xs font-bold flex items-center justify-center gap-1.5"
+            >
+              <UserCheck className="w-4 h-4" />
+              <span>لوحة الإشراف</span>
+            </button>
+          </div>
         </div>
       )}
     </nav>

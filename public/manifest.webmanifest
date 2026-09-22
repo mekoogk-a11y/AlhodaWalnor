@@ -1,0 +1,24 @@
+{
+  "name": "الهدى والنور - موسوعة الرد على الشبهات",
+  "short_name": "الهدى والنور",
+  "description": "منصة علمية إسلامية متخصصة في الرد العلمي الموثق على الشبهات بالقرآن والسنة وأقوال علماء أهل السنة والجماعة",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#0F1D36",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/pwa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

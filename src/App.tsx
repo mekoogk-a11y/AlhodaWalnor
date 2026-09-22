@@ -1,20 +1,26 @@
 import React, { useState } from "react";
-import { Navbar } from "./components/Navbar";
+import { Navbar, NavTabType } from "./components/Navbar";
 import { HeroSection } from "./components/HeroSection";
 import { MainArticleView } from "./components/MainArticleView";
 import { MisconceptionsDirectory } from "./components/MisconceptionsDirectory";
+import { UnifiedSearchView } from "./components/UnifiedSearchView";
 import { AboutMethodologyView } from "./components/AboutMethodologyView";
 import { AssistantModal } from "./components/AssistantModal";
+import { BookmarksDrawer } from "./components/BookmarksDrawer";
+import { AdminDashboardModal } from "./components/AdminDashboardModal";
+import { FloatingAudioPlayer } from "./components/FloatingAudioPlayer";
 import { Footer } from "./components/Footer";
 import { misconceptionsDatabase } from "./data/misconceptionsData";
 import { CategoryId } from "./types";
-import { Sparkles, ArrowUp } from "lucide-react";
+import { Sparkles, ArrowUp, Search, BookOpen, FileText, Bookmark } from "lucide-react";
 
 export default function App() {
-  const [currentTab, setCurrentTab] = useState<"main-article" | "directory" | "about">("main-article");
+  const [currentTab, setCurrentTab] = useState<NavTabType>("main-article");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryId>("all");
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [assistantInitialQuery, setAssistantInitialQuery] = useState("");
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -32,19 +38,15 @@ export default function App() {
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
-    if (query.trim().length > 0 && currentTab === "about") {
-      setCurrentTab("directory");
+    if (query.trim().length > 0 && currentTab !== "search") {
+      setCurrentTab("search");
     }
   };
 
   const handleSelectCategory = (id: CategoryId) => {
     setActiveCategory(id);
-    if (id === "all" || id === "shubuhat" || id === "encyclopedia" || id === "rebuttals") {
-      setCurrentTab("directory");
-    } else {
-      setCurrentTab("directory");
-    }
-    // Scroll smoothly to directory
+    setCurrentTab("directory");
+
     const dirEl = document.getElementById("content-area");
     if (dirEl) {
       dirEl.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -66,6 +68,8 @@ export default function App() {
         onTabChange={setCurrentTab}
         onOpenAssistant={() => handleOpenAssistantWithQuery()}
         onSelectCategory={handleSelectCategory}
+        onOpenBookmarks={() => setIsBookmarksOpen(true)}
+        onOpenAdmin={() => setIsAdminOpen(true)}
       />
 
       {/* Top Hero Section */}
@@ -79,38 +83,49 @@ export default function App() {
 
       {/* Navigation Sub-Tabs Bar */}
       <div id="content-area" className="max-w-5xl mx-auto px-4 w-full mb-8 scroll-mt-24">
-        <div className="bg-white p-1.5 rounded-2xl border border-[#EAE3D9] flex items-center justify-center gap-1 shadow-2xs">
+        <div className="bg-white p-1.5 rounded-2xl border border-[#EAE3D9] flex flex-wrap items-center justify-center gap-1 shadow-2xs">
           <button
             onClick={() => setCurrentTab("main-article")}
-            className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold font-quran transition-all cursor-pointer text-center ${
+            className={`flex-1 min-w-[200px] py-3 px-3 rounded-xl text-xs sm:text-sm font-bold font-quran transition-all cursor-pointer text-center ${
               currentTab === "main-article"
                 ? "bg-[#0F1D36] text-[#FAF7F2] shadow-xs"
                 : "text-[#4B5E75] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
             }`}
           >
-            المقال الموسوعي الأول: دعوى تناقضات القرآن (11 قسماً)
+            المقال الموسوعي: تناقضات القرآن (11 مبحثاً)
           </button>
 
           <button
             onClick={() => setCurrentTab("directory")}
-            className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold font-quran transition-all cursor-pointer text-center ${
+            className={`flex-1 min-w-[160px] py-3 px-3 rounded-xl text-xs sm:text-sm font-bold font-quran transition-all cursor-pointer text-center ${
               currentTab === "directory"
                 ? "bg-[#0F1D36] text-[#FAF7F2] shadow-xs"
                 : "text-[#4B5E75] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
             }`}
           >
-            موسوعة الشبهات والردود الموحدة
+            موسوعة الشبهات والردود
+          </button>
+
+          <button
+            onClick={() => setCurrentTab("search")}
+            className={`flex-1 min-w-[150px] py-3 px-3 rounded-xl text-xs sm:text-sm font-bold font-quran transition-all cursor-pointer text-center ${
+              currentTab === "search"
+                ? "bg-[#0F1D36] text-[#FAF7F2] shadow-xs"
+                : "text-[#4B5E75] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
+            }`}
+          >
+            المحرك المعرفي الشامل (9 علوم)
           </button>
 
           <button
             onClick={() => setCurrentTab("about")}
-            className={`flex-1 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold font-quran transition-all cursor-pointer text-center hidden sm:block ${
+            className={`py-3 px-4 rounded-xl text-xs sm:text-sm font-bold font-quran transition-all cursor-pointer text-center hidden md:block ${
               currentTab === "about"
                 ? "bg-[#0F1D36] text-[#FAF7F2] shadow-xs"
                 : "text-[#4B5E75] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
             }`}
           >
-            المنهج العلمي والمصادر
+            المنهج العلمي
           </button>
         </div>
       </div>
@@ -126,6 +141,13 @@ export default function App() {
             activeCategory={activeCategory}
             onSelectCategory={handleSelectCategory}
             onOpenAssistant={() => handleOpenAssistantWithQuery()}
+          />
+        )}
+
+        {currentTab === "search" && (
+          <UnifiedSearchView
+            initialQuery={searchQuery}
+            onOpenAssistantWithQuery={handleOpenAssistantWithQuery}
           />
         )}
 
@@ -150,6 +172,9 @@ export default function App() {
         </button>
       </div>
 
+      {/* Floating Audio Player when TTS is playing */}
+      <FloatingAudioPlayer />
+
       {/* Scroll to top button */}
       {showScrollTop && (
         <button
@@ -168,11 +193,23 @@ export default function App() {
         initialQuery={assistantInitialQuery}
       />
 
+      {/* Bookmarks Drawer */}
+      <BookmarksDrawer
+        isOpen={isBookmarksOpen}
+        onClose={() => setIsBookmarksOpen(false)}
+      />
+
+      {/* Admin Dashboard Modal */}
+      <AdminDashboardModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+      />
+
       {/* Footer */}
       <Footer
         onOpenAssistant={() => handleOpenAssistantWithQuery()}
         onSelectCategory={handleSelectCategory}
-        onTabChange={setCurrentTab}
+        onTabChange={(tab) => setCurrentTab(tab as NavTabType)}
       />
     </div>
   );

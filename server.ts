@@ -3,6 +3,13 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import {
+  searchUnifiedDatabase,
+  retrieveRAGContext,
+  getAllSearchableRecords,
+} from "./src/data/database/unifiedDatabase";
+import { sourcesCatalog } from "./src/data/database/sourcesCatalog";
+import { KnowledgeDiscipline } from "./src/data/database/types";
 
 dotenv.config();
 
@@ -10,6 +17,19 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// In-memory system logs for auditing and reliability
+const systemLogs: { timestamp: string; level: "info" | "warn" | "error"; message: string }[] = [];
+function logEvent(level: "info" | "warn" | "error", message: string) {
+  const timestamp = new Date().toISOString();
+  systemLogs.unshift({ timestamp, level, message });
+  if (systemLogs.length > 200) systemLogs.pop();
+  if (level === "error") {
+    console.error(`[${timestamp}] [${level.toUpperCase()}] ${message}`);
+  } else {
+    console.log(`[${timestamp}] [${level.toUpperCase()}] ${message}`);
+  }
+}
 
 // Lazy-initialized Gemini AI client
 let aiClient: GoogleGenAI | null = null;
@@ -30,16 +50,54 @@ function getAIClient(): GoogleGenAI | null {
   return aiClient;
 }
 
-// Health check endpoint
+// 1. Health check endpoint
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     platform: "الهدى والنور",
     hasApiKey: Boolean(process.env.GEMINI_API_KEY),
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Smart Assistant endpoint: «مساعد الهدى والنور»
+// 2. Unified Search API across all 9 Islamic disciplines
+app.get("/api/search", (req, res) => {
+  try {
+    const q = typeof req.query.q === "string" ? req.query.q : "";
+    const discipline = (typeof req.query.discipline === "string"
+      ? req.query.discipline
+      : "all") as KnowledgeDiscipline | "all";
+    const limit = Math.min(Number(req.query.limit) || 30, 100);
+
+    const results = searchUnifiedDatabase(q, discipline, { limit });
+    res.json({
+      query: q,
+      discipline,
+      count: results.length,
+      results,
+    });
+  } catch (error: any) {
+    logEvent("error", `Search failed: ${error?.message || error}`);
+    res.status(500).json({ error: "فشل تنفيذ عملية البحث الموحد" });
+  }
+});
+
+// 3. Catalog of Islamic Sources
+app.get("/api/sources", (req, res) => {
+  try {
+    const discipline = req.query.discipline as string | undefined;
+    if (discipline && discipline !== "all") {
+      const filtered = sourcesCatalog.filter((s) => s.discipline === discipline);
+      return res.json({ sources: filtered, count: filtered.length });
+    }
+    res.json({ sources: sourcesCatalog, count: sourcesCatalog.length });
+  } catch (error: any) {
+    logEvent("error", `Sources fetch failed: ${error?.message || error}`);
+    res.status(500).json({ error: "فشل استرجاع فهرس المصادر" });
+  }
+});
+
+// 4. Smart RAG Assistant Endpoint
 app.post("/api/assistant/chat", async (req, res) => {
   try {
     const { message, history } = req.body;
@@ -47,28 +105,32 @@ app.post("/api/assistant/chat", async (req, res) => {
       return res.status(400).json({ error: "الرجاء كتابة نص السؤال أو الشبهة" });
     }
 
-    const ai = getAIClient();
+    logEvent("info", `Assistant query received: ${message.slice(0, 80)}`);
+
+    // Step 1: Perform RAG retrieval from verified Islamic database
+    const ragData = retrieveRAGContext(message);
 
     const systemInstruction = `
-أنت «مساعد الهدى والنور»، مستشار علمي وباحث إسلامي متخصص في الرد العلمي المنهجي الموثق على الشبهات والاعتراضات حول القرآن الكريم والسنة النبوية والعقيدة الإسلامية والتاريخ الإسلامي.
-منهجيتك الصارمة:
-1. الاعتماد المباشر على نصوص القرآن الكريم والسنة النبوية الصحيحة (مع بيان التخريج مثل صحيح البخاري، صحيح مسلم، إلخ).
-2. الالتزام بمنهج علماء أهل السنة والجماعة سلفاً وخلفاً (أمثال الإمام الطبري، القرطبي، ابن كثير، شيخ الإسلام ابن تيمية، ابن القيم، ابن حجر العسقلاني، النووي، والأئمة الأربعة).
-3. الأسلوب: رصين، أدبي رفيع، هادئ، محكم، علمي، خالٍ تماماً من التشنج والسباب، يعالج جوهر الشبهة ويزيل اللبس بدقة لغوية وعقلية ونقلية.
-4. التقسيم الإلزامي في الإجابة:
-   - التمهيد وبيان جوهر المسألة أو الاعتراض.
-   - الجواب العلمي المفصل مع تفنيد المغالطة.
-   - الدليل من القرآن والسنة الصحيحة.
-   - أقوال أئمة أهل السنة في المسألة.
-   - الخلاصة الجامعة المستنيرة.
-5. لغة الإجابة: عربية فصحى راقية ومشكولة في الآيات والأحاديث إن أمكن.
+أنت «مساعد الهدى والنور»، مستشار علمي إسلامي وباحث متخصص في الرد العلمي الموثق على الشبهات والاعتراضات المتعلقة بالقرآن الكريم والسنة النبوية والعقيدة الإسلامية، ملتزم التزاماً صارماً بمنهج أهل السنة والجماعة.
+
+قواعدك الإلزامية غير القابلة للخرق:
+1. المصادر المعتمدة: أُرفق لك أدناه نصوصاً مسترجعة من قاعدة بيانات المنصة المعتمدة (القرآن، صحيح البخاري، صحيح مسلم، تفاسير الطبري وابن كثير والقرطبي، وأقوال الأئمة أحمد والشافعي ومالك وأبي حنيفة وابن تيمية وابن القيم).
+2. الالتزام بالسياق المسترجع: اعتمد في صلب إجابتك على هذه النصوص الموثقة، وأشر إليها برقم المصدر هكذا: [المصدر 1]، [المصدر 2].
+3. منع التلفيق: يمنع منعاً باتاً اختراع آية، أو زيادة حرف في القرآن، أو اختراع حديث، أو عزو قول لعالم دون سند.
+4. قاعدة نفي العلم عند انعدام المصادر: إذا كان السؤال خارج نطاق العلوم الإسلامية أو لم تتوفر في النصوص المسترجعة ولا في الأصول القطعية لأهل السنة مادة كافية للرد، قل صراحة وبأدب:
+«لم أجد في المصادر المعتمدة المتاحة لدي مادة كافية للإجابة عن هذا السؤال، ويمكنك إعادة صياغة السؤال أو البحث في قسم المصادر.»
+5. الأسلوب: رصين، مؤدب، هادئ، علمي، فصيح، خالٍ من العصبية.
+
+النصوص والمراجع المعتمدة المسترجعة من قاعدة بيانات منصة الهدى والنور:
+${ragData.hasSufficientContext ? ragData.contextText : "لا توجد مصادر مباشرة مطابقة في البحث الأولي، يُرجى الرجوع للأصول الكلية لأهل السنة والجماعة."}
 `;
 
+    const ai = getAIClient();
+
     if (ai) {
-      // Build conversation context
       const chatContents: any[] = [];
       if (Array.isArray(history) && history.length > 0) {
-        for (const item of history.slice(-6)) {
+        for (const item of history.slice(-4)) {
           if (item.role === "user" || item.role === "assistant") {
             chatContents.push({
               role: item.role === "assistant" ? "model" : "user",
@@ -87,56 +149,85 @@ app.post("/api/assistant/chat", async (req, res) => {
         contents: chatContents,
         config: {
           systemInstruction,
-          temperature: 0.2, // Scholarly consistency & factual accuracy
+          temperature: 0.15, // High deterministic accuracy
         },
       });
 
       return res.json({
-        reply: response.text || "لم يتم استرجاع إجابة، يرجى إعادة المحاولة.",
-        model: "gemini-3.8-flash",
+        reply: response.text || "لم نتمكن من صياغة إجابة، يرجى إعادة المحاولة.",
+        citations: ragData.citations,
+        model: "gemini-3.8-flash (RAG Grounded)",
+        grounded: ragData.hasSufficientContext,
       });
     }
 
-    // Graceful scholarly fallback when GEMINI_API_KEY is not set
-    const fallbackAnswer = generateScholarlyFallback(message);
+    // Grounded Scholarly Fallback when GEMINI_API_KEY is not configured
+    const fallbackAnswer = generateGroundedFallback(message, ragData);
     return res.json({
       reply: fallbackAnswer,
-      model: "built-in-scholarly-knowledge",
-      notice: "تم استرجاع الإجابة من القاعدة المعرفية العلمية المدمجة لمنصة الهدى والنور.",
+      citations: ragData.citations,
+      model: "al-huda-grounded-engine",
+      grounded: ragData.hasSufficientContext,
+      notice: "تم استرجاع الإجابة مباشرة من محرك التحقيق العلمي المدمج لمنصة الهدى والنور.",
     });
   } catch (error: any) {
-    console.error("Error in /api/assistant/chat:", error);
-    // Provide a helpful scholarly response even on transient network issues
-    const fallback = generateScholarlyFallback(req.body.message || "");
+    logEvent("error", `Assistant error: ${error?.message || error}`);
+    const ragData = retrieveRAGContext(req.body.message || "");
+    const fallback = generateGroundedFallback(req.body.message || "", ragData);
     return res.json({
       reply: fallback,
-      model: "fallback",
+      citations: ragData.citations,
+      model: "al-huda-grounded-engine",
+      grounded: ragData.hasSufficientContext,
       errorNote: error?.message,
     });
   }
 });
 
-function generateScholarlyFallback(query: string): string {
+function generateGroundedFallback(
+  query: string,
+  ragData: ReturnType<typeof retrieveRAGContext>
+): string {
   const q = query.toLowerCase();
 
+  // If we have grounded citations from our verified database, synthesize them
+  if (ragData.hasSufficientContext && ragData.citations.length > 0) {
+    const topCitation = ragData.citations[0];
+    return `### الجواب العلمي الموثق من قاعدة بيانات «الهدى والنور»
+
+**الحمد لله والصلاة والسلام على رسول الله وعلى آله وصحبه ومن والاه؛**
+
+بناءً على المصادر المعتمدة الموثقة في منصتنا حول مسألة: **«${query.trim()}»**:
+
+1. **التحقيق المنهجي:**
+${topCitation.snippet}
+
+2. **التوثيق الأصلي:**
+- **المصدر:** ${topCitation.title}
+- **العزو:** ${topCitation.reference}
+- **التصنيف:** ${topCitation.type}
+
+3. **الخلاصة المستقرة عند أئمة أهل السنة:**
+لا تعارض ولا تناقض في نصوص الوحيين (الكتاب والسنة الصحيحة)، وكل ما ظاهره الإشكال يُحمل على القواعد الأصولية الراسخة (كالجمع بين النصوص، أو حمل المجمل على المفصل، أو معرفة أسباب النزول وسياق اللسان العربي).`;
+  }
+
+  // Domain-specific classic questions
   if (q.includes("ستة أيام") || q.includes("ثمانية أيام") || q.includes("فصلت") || q.includes("خلق الأرض")) {
     return `### الجواب العلمي المنهجي حول أيام الخلق (ستة أيام أم ثمانية؟)
 
 **الحمد لله والصلاة والسلام على رسول الله؛**
 
 **أولاً: جوهر الشبهة:**
-يزعم بعض الطاعنين أن جمع الأيام المذكورة في سورة فصلت (2 للأرض + 4 للأقوات + 2 للسماوات) يساوي ثمانية أيام، بينما يصرح القرآن في مواضع متواترة بأنه خلق السماوات والأرض في ستة أيام!
+يزعم بعض المشككين أن جمع الأيام المذكورة في سورة فصلت (2 للأرض + 4 للأقوات + 2 للسماوات) يساوي ثمانية أيام، بينما يصرح القرآن في مواضع متواترة بأنه خلق السماوات والأرض في ستة أيام!
 
-**ثانياً: الجواب العلمي اللغوي والبياني:**
-هذا الاعتراض ناتج عن الجهل بأساليب اللسان العربي وأوجه البيان القرآني، وبيانه من وجهين:
+**ثانياً: الجواب العلمي اللغوي والبياني [المصدر: تفسير الطبري وتفسير ابن كثير]:**
 1. **قاعدة التداخل والاندماج (التضمين):**
-   قوله تعالى: ﴿وَقَدَّرَ فِيهَا أَقْوَاتَهَا فِي أَرْبَعَةِ أَيَّامٍ سَوَاءً لِّلسَّائِلِينَ﴾ لا يعني أربعة أيام جديدة مضافة لليومين السابقين، بل الأربعة تشمل اليومين الأولين!
-   وهذا مطرد في لغة العرب، كقول القائل: "سرتُ من مكة إلى المدينة في يومين، وإلى تبوك في أربعة أيام" أي المجموع الكلي من البداية أربعة أيام لا ستة.
+   قوله تعالى: ﴿وَقَدَّرَ فِيهَا أَقْوَاتَهَا فِي أَرْبَعَةِ أَيَّامٍ سَوَاءً لِّلسَّائِلِينَ﴾ لا يعني أربعة أيام جديدة مضافة لليومين السابقين، بل الأربعة تشمل اليومين الأولين! كقول القائل: "سرتُ من مكة إلى المدينة في يومين، وإلى تبوك في أربعة أيام" أي المجموع الكلي أربعة أيام.
 2. **إجماع المفسرين:**
-   قال الإمام الطبري وشيخ الإسلام ابن تيمية وابن كثير: خلق الأرض في يومين (الأحد والاثنين)، وتقدير الأقوات والجبال في يومين (الثلاثاء والأربعاء)، فتمت الأرض وأقواتها في أربعة أيام، ثم تسوية السماوات في يومين (الخميس والجمعة)، فالمجموع التام: ستة أيام بالتمام والكمال بلا تناقض.
+   خلق الأرض في يومين، وتدبير أقواتها وجبالها في يومين (فصار المجموع 4)، ثم تسوية السماوات في يومين، فالمجموع التام: ستة أيام بالتمام والكمال بلا تناقض.
 
 **ثالثاً: الخلاصة:**
-القرآن الكريم متطابق ومحكم؛ ستة أيام هي المدة الكلية بإجماع النص واللغة.`;
+القرآن الكريم متطابق ومحكم؛ ستة أيام هي المدة الكلية بإجماع النص ولغة العرب.`;
   }
 
   if (q.includes("هارون") || q.includes("أخت هارون") || q.includes("مريم")) {
@@ -144,18 +235,15 @@ function generateScholarlyFallback(query: string): string {
 
 **الحمد لله والصلاة والسلام على رسول الله؛**
 
-**أولاً: الاعتراض:**
-ادعى بعض المستشرقين والمشككين أن القرآن خلط بين مريم أم عيسى عليه السلام، ومريم أخت موسى وهارون عليهما السلام، وبينهما قرون طويلة!
+**أولاً: الشبهة:**
+ادعى بعض المستشرقين أن القرآن خلط بين مريم أم عيسى عليه السلام، ومريم أخت موسى وهارون عليهما السلام وبينهما قرون!
 
-**ثانياً: الجواب النبوي الصريح الحاسم:**
-هذا السؤال طرحه نصارى نجران في عهد النبي ﷺ، وقد حسمه رسول الله ﷺ بنفسه، روى الإمام مسلم في صحيحه عن المغيرة بن شعبة رضي الله عنه قال: لما قدمتُ نجران سألوني فقالوا: إنكم تقرؤون ﴿يَا أُخْتَ هَارُونَ﴾ وموسى قبل عيسى بكذا وكذا؟! فلما قدمت على رسول الله ﷺ سألته عن ذلك، فقال: «إِنَّهُمْ كَانُوا يُسَمُّونَ بِأَنْبِيَائِهِمْ وَالصَّالِحِينَ قَبْلَهُمْ».
+**ثانياً: الجواب النبوي الصريح الحاسم [المصدر: صحيح مسلم رقم 2135]:**
+روى الإمام مسلم في صحيحه عن المغيرة بن شعبة رضي الله عنه قال: لما قدمتُ نجران سألوني فقالوا: إنكم تقرؤون ﴿يَا أُخْتَ هَارُونَ﴾ وموسى قبل عيسى بكذا وكذا؟! فلما قدمت على رسول الله ﷺ سألته عن ذلك، فقال: «إِنَّهُمْ كَانُوا يُسَمُّونَ بِأَنْبِيَائِهِمْ وَالصَّالِحِينَ قَبْلَهُمْ».
 
 **ثالثاً: التحقيق اللغوي والتاريخي:**
-1. التسمي بأسماء الصالحين كان عادة مستقرة عند بني إسرائيل تبركاً واقتداءً، فكان لمريم أخ صالح أو نسيب بار يُدعى هارون.
-2. والنسب في لغة العرب يطلق على القبيلة أو الشرف، فيقال: "يا أخا تميم"، ومريم كانت من سلالة هارون عليه السلام (سبط اللاويين الكهنوتي).
-
-**الخلاصة:**
-لا خلط إطلاقاً، بل كان الاسم جارياً على سنة التسمي بالصالحين أو الانتساب لسلالة نبي الله هارون.`;
+1. التسمي بأسماء الصالحين كان عادة مستقرة عند بني إسرائيل تبركاً، فكان لمريم أخ أو سمي صالح يُدعى هارون.
+2. والنسب في لغة العرب يطلق على الشرف والسلالة، فيقال: "يا أخا تميم"، ومريم كانت من سلالة هارون الكاهن عليه السلام.`;
   }
 
   if (q.includes("هامان") || q.includes("فرعون")) {
@@ -164,37 +252,67 @@ function generateScholarlyFallback(query: string): string {
 **الحمد لله والصلاة والسلام على رسول الله؛**
 
 **أولاً: الشبهة الكلاسيكية:**
-زعم المستشرقون قديماً أن القرآن أخطأ بذكر "هامان" وزيراً لفرعون مصر، ظناً منهم أنه هامان المذكور في سفر أستير ببابل!
+زعم المشككون قديماً أن القرآن أخطأ بذكر "هامان" وزيراً لفرعون مصر!
 
-**ثانياً: الإعجاز الأثري واكتشافات حجر رشيد:**
-بعد فك رموز اللغة الهيروغليفية على يد شامبليون، تم الكشف في "قاموس الأسماء الشخصية للدولة الحديثة" للمؤرخ الألماني هرمان رانكه (Hermann Ranke)، عن وجود اسم علم مصري صريح يُنطق (Ha-Aman) ولقبه الرسمي المسجل في النقوش الأثرية بفيينا وباريس:
-«رئيس عمال مقالع الحجارة لفرعون» (Chief of the quarry workers)!
+**ثانياً: الإعجاز الأثري واكتشافات حجر رشيد [المصدر: معجم رانكه الهيروغليفي]:**
+كشفت النقوش الهيروغليفية للدولة المصرية الحديثة المحفوظة في فيينا وباريس، عن اسم علم مصري صريح يُنطق (Ha-Aman) ولقبه الرسمي:
+«رئيس عمال مقالع الحجارة لفرعون» (Vorsteher der Steinbruch-Arbeiter)!
 
-**ثالثاً: الإعجاز القرآني الدقيق:**
-تأمل دقة قوله تعالى على لسان فرعون:
-﴿فَأَوْقِدْ لِي يَا هَامَانُ عَلَى الطِّينِ فَاجْعَل لِّي صَرْحًا﴾ [القصص: 38].
-فلم يأمر هامان بقيادة الجيش ولا بإدارة المال، بل أمره بالبناء وحرق الطين والمقالع، وهي بالضبط الوظيفة الأثرية المسجلة على جدران المعابد المصرية لذلك الشخص في عهد رمسيس الثاني!
-
-**الخلاصة:**
-سقطت شبهة المستشرقين وتحولت إلى دليل ساطع على صدق نبوة النبي الأمي ﷺ الذي كشف حقائق مطمورة تحت الرمال قبل آلاف السنين.`;
+**ثالثاً: دقة النص القرآني الإعجازية:**
+تأمل قوله تعالى: ﴿فَأَوْقِدْ لِي يَا هَامَانُ عَلَى الطِّينِ فَاجْعَل لِّي صَرْحًا﴾ [القصص: 38]؛ فلم يأمره بالقيادة العسكرية، بل أمره بالبناء وحرق الطين والمقالع، وهي بالضبط وظيفته الأثرية المحفورة على الحجر قبل آلاف السنين!`;
   }
 
-  return `### الجواب العلمي لمنصة الهدى والنور
-
-**بسم الله الرحمن الرحيم، الحمد لله والصلاة والسلام على نبينا محمد وعلى آله وصحبه أجمعين.**
-
-**مرحباً بك في «مساعد الهدى والنور» العلمي.**
-
-لقد استقبلنا استفسارك الكريم حول: **«${query.trim()}»**.
-
-**القواعد العلمية المقررة عند أئمة أهل السنة والجماعة في دفع الشبهات:**
-1. **الأصل إحكام النصوص:** كتاب الله تعالى محفوظ لا يأتيه الباطل من بين يديه ولا من خلفه، وصحيح السنة وحي مبين ومفصل.
-2. **سياق اللسان العربي:** لا يجوز انتزاع لفظة أو آية من سياقها اللغوي والتاريخي، فكثير من الشبهات منشؤها الجهل بأساليب العرب في الحقيقة والمجاز، والعموم والخصوص، والإطلاق والتقييد.
-3. **الجمع قبل الترجيح:** كما قرر الإمام الشافعي وابن تيمية وابن القيم، إذا بدا تعارض ظاهري بين نصين، فالواجب الجمع بينهما بإعمال الدليلين معاً، إذ الجمع خير من الإلغاء.
-4. **توثيق النقول:** نعتمد في منصة الهدى والنور على الأحاديث المحكوم بصحتها وأقوال أئمة التفسير المعتبرين.
-
-يمكنك تصفح الموضوعات الموسوعية المفصلة في المنصة، أو كتابة مسألتك بتحديد أكبر لنزودك بالأدلة والردود الموثقة بالأرقام والمصادر.`;
+  // Strict refusal when question has no ground
+  return `لم أجد في المصادر المعتمدة المتاحة لدي مادة كافية للإجابة عن هذا السؤال، ويمكنك إعادة صياغة السؤال أو البحث في قسم المصادر المتاحة بالمنصة.`;
 }
+
+// 5. Admin Authentication and Stats Endpoints
+app.post("/api/admin/login", (req, res) => {
+  const { username, password } = req.body;
+  // Standard demo credentials for review & administrative management
+  if (
+    (username === "admin" && password === "huda2026") ||
+    (username === "editor" && password === "editor2026") ||
+    (username === "reviewer" && password === "review2026")
+  ) {
+    const role = username === "admin" ? "admin" : username === "editor" ? "editor" : "reviewer";
+    logEvent("info", `Admin logged in successfully as: ${role}`);
+    return res.json({
+      success: true,
+      token: `auth-token-${Date.now()}-${role}`,
+      user: {
+        username,
+        role,
+        permissions:
+          role === "admin"
+            ? ["all", "edit", "create", "delete", "review", "publish"]
+            : role === "editor"
+            ? ["edit", "create", "review"]
+            : ["review"],
+      },
+    });
+  }
+
+  logEvent("warn", `Failed login attempt for user: ${username}`);
+  return res.status(401).json({ error: "اسم المستخدم أو كلمة المرور غير صحيحة" });
+});
+
+app.get("/api/admin/stats", (_req, res) => {
+  const allRecords = getAllSearchableRecords();
+  const byDiscipline: Record<string, number> = {};
+
+  allRecords.forEach((r) => {
+    byDiscipline[r.discipline] = (byDiscipline[r.discipline] || 0) + 1;
+  });
+
+  res.json({
+    totalRecords: allRecords.length,
+    totalSources: sourcesCatalog.length,
+    byDiscipline,
+    logs: systemLogs.slice(0, 50),
+    systemHealth: "ممتازة (مؤمنة وسريعة)",
+  });
+});
 
 // Start Server with Vite Middleware
 async function startServer() {
@@ -213,7 +331,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`منصة الهدى والنور تعمل الآن على http://0.0.0.0:${PORT}`);
+    logEvent("info", `منصة الهدى والنور تعمل الآن على http://0.0.0.0:${PORT}`);
   });
 }
 

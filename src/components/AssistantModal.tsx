@@ -12,10 +12,12 @@ import {
   Check,
   ShieldCheck,
   BookOpen,
-  HelpCircle,
   Volume2,
+  ExternalLink,
+  Info,
 } from "lucide-react";
 import { AppIconGraphic } from "./Logo";
+import { ttsService } from "../utils/audioTTS";
 
 interface AssistantModalProps {
   isOpen: boolean;
@@ -24,12 +26,12 @@ interface AssistantModalProps {
 }
 
 const DEFAULT_SUGGESTIONS = [
-  "هل هناك تناقض في أيام الخلق بين 6 أيام و8 أيام؟",
+  "هل هناك تناقض في أيام الخلق بين 6 أيام و8 أيام في سورة فصلت؟",
   "ما الجواب العلمي على قوله تعالى «يا أخت هارون»؟",
   "كيف كشف علم الآثار الحديث حقيقة هامان وفرعون؟",
   "ما هي قاعدة ابن تيمية في استحالة تعارض العقل والنقل؟",
   "كيف نرد على من يدعي تأخر تدوين السنة النبوية؟",
-  "ما هو الموقف العلمي من حديث غمس الذباب في الإناء؟",
+  "ما هو الموقف العلمي والحديثي من حديث الذباب؟",
 ];
 
 export const AssistantModal: React.FC<AssistantModalProps> = ({
@@ -43,17 +45,25 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
       role: "assistant",
       content: `**بسم الله الرحمن الرحيم**
 
-أهلاً بك في **«مساعد الهدى والنور»** العلمي.
+مرحباً بك في **«مساعد الهدى والنور»** العلمي المقيد بالأصول.
 
 أنا هنا لإعانتك في تفنيد الشبهات والاعتراضات المتعلقة بالقرآن الكريم، والسنة النبوية، والعقيدة، والتاريخ الإسلامي، مستنداً إلى القرآن العظيم، وصحيح السنة، وأقوال أئمة أهل السنة والجماعة كابن جرير الطبري وابن تيمية وابن كثير وابن القيم.
 
-تفضل بطرح سؤالك أو اختر أحد المباحث المقترحة أدناه:`,
+اطرح سؤالك أو اختر أحد المباحث المقترحة أدناه:`,
       timestamp: "الآن",
     },
   ]);
   const [input, setInput] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [activeCitationModal, setActiveCitationModal] = useState<{
+    title: string;
+    author: string;
+    reference: string;
+    type: string;
+    snippet: string;
+  } | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,7 +97,7 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: userMessage.content,
-          history: messages.slice(-6).map((m) => ({
+          history: messages.slice(-4).map((m) => ({
             role: m.role,
             content: m.content,
           })),
@@ -106,6 +116,8 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
         content: data.reply || "عذراً، لم نتمكن من الحصول على إجابة وافية حالياً، يرجى المحاولة لاحقاً.",
         timestamp: new Date().toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" }),
         modelNotice: data.notice,
+        citations: data.citations || [],
+        grounded: data.grounded,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -148,7 +160,7 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
                   مساعد الهدى والنور
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#C5A265]/20 text-[#FDE68A] border border-[#C5A265]/40">
-                  مستشار علمي موثق
+                  مستشار RAG مقيد بالمصادر
                 </span>
               </div>
               <p className="text-xs text-[#EAE3D9]/70 font-medium">
@@ -170,7 +182,7 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
         <div className="px-6 py-2 bg-[#F3ECE0] border-b border-[#E5DDD1] text-[11px] text-[#556982] flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-[#B8934C]" />
-            <span>منهج أهل السنة والجماعة | لا اجتهاد مع النص المحكم</span>
+            <span>منهج أهل السنة والجماعة | مدعم بنظام استرجاع المصادر المعتمدة</span>
           </div>
           <button
             onClick={() =>
@@ -226,6 +238,29 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
                   {msg.content}
                 </div>
 
+                {/* Grounded Citation Chips */}
+                {msg.citations && msg.citations.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-[#F0EAE1] space-y-1.5">
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-[#8C6D34]">
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>المصادر المعتمدة المسترجعة من قاعدة البيانات:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.citations.map((c, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveCitationModal(c)}
+                          className="px-2.5 py-1 rounded-lg bg-[#FAF7F2] hover:bg-[#F3EFE9] border border-[#E2DACF] text-[11px] text-[#0F1D36] font-medium flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          <span className="font-bold text-[#8C6D34]">[{idx + 1}]</span>
+                          <span className="truncate max-w-[180px]">{c.title}</span>
+                          <ExternalLink className="w-3 h-3 text-[#7A8C9E]" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {msg.modelNotice && (
                   <div className="mt-2 text-[11px] text-[#8C6D34] bg-[#FAF7F2] p-2 rounded-lg border border-[#EAE3D9]">
                     {msg.modelNotice}
@@ -241,23 +276,36 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
                 >
                   <span>{msg.timestamp}</span>
 
-                  <button
-                    onClick={() => handleCopyMessage(msg.id, msg.content)}
-                    className="hover:underline flex items-center gap-1 cursor-pointer opacity-70 group-hover:opacity-100 transition-opacity"
-                    title="نسخ النص"
-                  >
-                    {copiedId === msg.id ? (
-                      <>
-                        <Check className="w-3 h-3 text-emerald-500" />
-                        <span>تم النسخ</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3 h-3" />
-                        <span>نسخ</span>
-                      </>
+                  <div className="flex items-center gap-2">
+                    {msg.role === "assistant" && (
+                      <button
+                        onClick={() => ttsService.speak(msg.content)}
+                        className="hover:underline flex items-center gap-1 cursor-pointer opacity-70 group-hover:opacity-100 transition-opacity"
+                        title="استمع صوتياً"
+                      >
+                        <Volume2 className="w-3 h-3" />
+                        <span>استماع</span>
+                      </button>
                     )}
-                  </button>
+
+                    <button
+                      onClick={() => handleCopyMessage(msg.id, msg.content)}
+                      className="hover:underline flex items-center gap-1 cursor-pointer opacity-70 group-hover:opacity-100 transition-opacity"
+                      title="نسخ النص"
+                    >
+                      {copiedId === msg.id ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-500" />
+                          <span>تم النسخ</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>نسخ</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -270,7 +318,7 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
               </div>
               <div className="bg-white border border-[#EAE3D9] rounded-2xl rounded-tl-xs p-4 flex items-center gap-3 text-sm text-[#5A6E85]">
                 <Loader2 className="w-4 h-4 text-[#B8934C] animate-spin" />
-                <span>جاري البحث واستحضار الأدلة الشرعية والتاريخية...</span>
+                <span>جاري البحث واستحضار الأدلة من مصادر أهل السنة...</span>
               </div>
             </div>
           )}
@@ -279,8 +327,8 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
         </div>
 
         {/* Suggestion Chips */}
-        <div className="px-4 py-2.5 bg-[#FAF7F2] border-t border-[#EAE3D9] overflow-x-auto">
-          <div className="flex items-center gap-1.5 text-xs text-[#7A8C9E] shrink-0 mb-1.5 font-medium">
+        <div className="px-4 py-2 bg-[#FAF7F2] border-t border-[#EAE3D9] overflow-x-auto">
+          <div className="flex items-center gap-1.5 text-xs text-[#7A8C9E] shrink-0 mb-1 font-medium">
             <Sparkles className="w-3.5 h-3.5 text-[#B8934C]" />
             <span>مسائل مقترحة للبحث المباشر:</span>
           </div>
@@ -289,7 +337,8 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
               <button
                 key={idx}
                 onClick={() => handleSend(sug)}
-                className="whitespace-nowrap px-3 py-1.5 rounded-xl bg-white hover:bg-[#F2ECE3] border border-[#E2DACF] text-xs text-[#2F435A] transition-colors cursor-pointer shrink-0"
+                disabled={loading}
+                className="px-3 py-1 rounded-xl bg-white border border-[#E2DACF] hover:border-[#0F1D36] text-xs text-[#2A3B52] whitespace-nowrap transition-colors cursor-pointer disabled:opacity-50"
               >
                 {sug}
               </button>
@@ -297,7 +346,7 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
           </div>
         </div>
 
-        {/* Input Bar */}
+        {/* Input box */}
         <div className="p-4 bg-white border-t border-[#EAE3D9]">
           <form
             onSubmit={(e) => {
@@ -310,25 +359,62 @@ export const AssistantModal: React.FC<AssistantModalProps> = ({
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="اكتب شبهتك أو سؤالك حول القرآن والسنة والعقيدة..."
-              className="flex-1 bg-[#FAF7F2] border border-[#E2DACF] focus:border-[#0F1D36] focus:bg-white rounded-xl px-4 py-3 text-sm text-[#0F1D36] placeholder-[#8A9BAE] outline-none transition-all"
+              placeholder="اكتب سؤالك أو الشبهة التي تريد جوابها العلمي..."
               disabled={loading}
+              className="flex-1 bg-[#FAF7F2] border border-[#E2DACF] focus:border-[#0F1D36] rounded-2xl px-4 py-3 text-sm text-[#0F1D36] placeholder-[#8C9EB0] outline-none transition-colors"
             />
 
             <button
               type="submit"
-              disabled={loading || !input.trim()}
-              className="px-5 py-3 rounded-xl bg-[#0F1D36] hover:bg-[#1B2E4B] disabled:bg-[#A8B4C2] text-[#FAF7F2] text-sm font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:cursor-not-allowed shrink-0"
+              disabled={!input.trim() || loading}
+              className="px-5 py-3 rounded-2xl bg-[#0F1D36] hover:bg-[#1A2E4C] text-[#FDE68A] font-bold text-sm flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
             >
+              <span>إرسال</span>
               <Send className="w-4 h-4 rotate-180" />
-              <span className="hidden sm:inline">إرسال</span>
             </button>
           </form>
-          <p className="text-[11px] text-[#8C9EB0] text-center mt-2">
-            «مساعد الهدى والنور» مدرب على مراجع أهل السنة والجماعة، ولا يقدم فتاوى فقهية شخصية بل ردوداً علمية موثقة.
-          </p>
         </div>
       </div>
+
+      {/* Citation Details Sub-Modal */}
+      {activeCitationModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl border border-[#EAE3D9] max-w-lg w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-[#F0EAE1]">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#0F1D36] text-[#FAF7F2]">
+                  {activeCitationModal.type}
+                </span>
+                <h4 className="font-bold font-quran text-base text-[#0F1D36]">
+                  {activeCitationModal.title}
+                </h4>
+              </div>
+              <button
+                onClick={() => setActiveCitationModal(null)}
+                className="p-1 rounded-lg text-[#7A8C9E] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-1 text-xs text-[#556982]">
+              <p><span className="font-bold text-[#0F1D36]">المؤلف/الجهة:</span> {activeCitationModal.author}</p>
+              <p><span className="font-bold text-[#0F1D36]">الموضع والتوثيق:</span> {activeCitationModal.reference}</p>
+            </div>
+
+            <div className="bg-[#FAF7F2] p-4 rounded-xl border border-[#E8E0D2] font-scholarly text-sm leading-relaxed text-[#1B2B3E]">
+              {activeCitationModal.snippet}
+            </div>
+
+            <button
+              onClick={() => setActiveCitationModal(null)}
+              className="w-full py-2.5 rounded-xl bg-[#0F1D36] text-[#FAF7F2] text-xs font-bold"
+            >
+              إغلاق نافذة المصدر
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
