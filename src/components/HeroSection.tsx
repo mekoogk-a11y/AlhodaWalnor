@@ -14,6 +14,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { CategoryId } from "../types";
+import { useLanguage } from "../i18n/LanguageContext";
 
 interface HeroSectionProps {
   searchQuery: string;
@@ -23,17 +24,45 @@ interface HeroSectionProps {
   onOpenAssistant: () => void;
 }
 
-const CATEGORY_BUTTONS: { id: CategoryId; label: string; icon: React.ElementType }[] = [
-  { id: "shubuhat", label: "الشبهات", icon: ShieldAlert },
-  { id: "quran", label: "القرآن الكريم", icon: BookOpen },
-  { id: "sunnah", label: "السنة النبوية", icon: Scroll },
-  { id: "aqeedah", label: "العقيدة", icon: Compass },
-  { id: "uloom_quran", label: "علوم القرآن", icon: BookMarked },
-  { id: "uloom_hadith", label: "علوم الحديث", icon: FileCheck },
-  { id: "scholars", label: "أقوال العلماء", icon: GraduationCap },
-  { id: "rebuttals", label: "الردود العلمية", icon: Scale },
-  { id: "encyclopedia", label: "الموسوعة", icon: Library },
-  { id: "assistant", label: "المساعد الذكي", icon: Sparkles },
+const CATEGORY_LABELS_AR: Record<CategoryId, string> = {
+  all: "الكل",
+  shubuhat: "الشبهات",
+  quran: "القرآن الكريم",
+  sunnah: "السنة النبوية",
+  aqeedah: "العقيدة",
+  uloom_quran: "علوم القرآن",
+  uloom_hadith: "علوم الحديث",
+  scholars: "أقوال العلماء",
+  rebuttals: "الردود العلمية",
+  encyclopedia: "الموسوعة",
+  assistant: "المساعد الذكي",
+};
+
+const CATEGORY_LABELS_EN: Record<CategoryId, string> = {
+  all: "All",
+  shubuhat: "Misconceptions",
+  quran: "Holy Quran",
+  sunnah: "Prophetic Sunnah",
+  aqeedah: "Creed & Faith",
+  uloom_quran: "Quran Sciences",
+  uloom_hadith: "Hadith Sciences",
+  scholars: "Scholars",
+  rebuttals: "Rebuttals",
+  encyclopedia: "Encyclopedia",
+  assistant: "Smart Assistant",
+};
+
+const CATEGORY_BUTTONS: { id: CategoryId; icon: React.ElementType }[] = [
+  { id: "shubuhat", icon: ShieldAlert },
+  { id: "quran", icon: BookOpen },
+  { id: "sunnah", icon: Scroll },
+  { id: "aqeedah", icon: Compass },
+  { id: "uloom_quran", icon: BookMarked },
+  { id: "uloom_hadith", icon: FileCheck },
+  { id: "scholars", icon: GraduationCap },
+  { id: "rebuttals", icon: Scale },
+  { id: "encyclopedia", icon: Library },
+  { id: "assistant", icon: Sparkles },
 ];
 
 export const HeroSection: React.FC<HeroSectionProps> = ({
@@ -43,8 +72,15 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   onSelectCategory,
   onOpenAssistant,
 }) => {
+  const { t, language, isRTL } = useLanguage();
+
+  const getCategoryLabel = (id: CategoryId) => {
+    if (language === "ar") return CATEGORY_LABELS_AR[id] || id;
+    return CATEGORY_LABELS_EN[id] || CATEGORY_LABELS_AR[id] || id;
+  };
+
   return (
-    <section className="py-10 sm:py-16 px-4 text-center relative overflow-hidden">
+    <section className="py-10 sm:py-16 px-4 text-center relative overflow-hidden" dir={isRTL ? "rtl" : "ltr"}>
       {/* Background glow & subtle scholarly motifs */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-gradient-to-b from-[#C5A265]/10 via-[#FDFBF7]/40 to-transparent blur-3xl -z-10 pointer-events-none rounded-full"></div>
 
@@ -55,7 +91,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
         {/* Large Main Search Box */}
         <div className="relative max-w-2xl mx-auto pt-2">
           <div className="relative group">
-            <div className="absolute inset-y-0 right-0 pr-5 flex items-center pointer-events-none text-[#8C9EB0] group-focus-within:text-[#0F1D36] transition-colors">
+            <div className={`absolute inset-y-0 ${isRTL ? "right-0 pr-5" : "left-0 pl-5"} flex items-center pointer-events-none text-[#8C9EB0] group-focus-within:text-[#0F1D36] transition-colors`}>
               <Search className="w-5 h-5" />
             </div>
 
@@ -63,16 +99,18 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="ابحث في القرآن والسنة وأقوال العلماء والشبهات..."
-              className="w-full bg-white border-2 border-[#E2DACF] focus:border-[#0F1D36] text-[#0F1D36] placeholder-[#8A9BAE] text-base sm:text-lg rounded-2xl pr-13 pl-12 py-4 sm:py-4.5 shadow-sm hover:border-[#D6CBB8] transition-all outline-none"
+              placeholder={t.hero.searchPlaceholder}
+              className={`w-full bg-white border-2 border-[#E2DACF] focus:border-[#0F1D36] text-[#0F1D36] placeholder-[#8A9BAE] text-base sm:text-lg rounded-2xl ${
+                isRTL ? "pr-13 pl-12" : "pl-13 pr-12"
+              } py-4 sm:py-4.5 shadow-sm hover:border-[#D6CBB8] transition-all outline-none`}
             />
 
             {searchQuery && (
               <button
                 onClick={() => onSearchChange("")}
-                className="absolute inset-y-0 left-0 pl-4 flex items-center text-xs text-[#8A9BAE] hover:text-[#0F1D36] cursor-pointer"
+                className={`absolute inset-y-0 ${isRTL ? "left-0 pl-4" : "right-0 pr-4"} flex items-center text-xs text-[#8A9BAE] hover:text-[#0F1D36] cursor-pointer`}
               >
-                مسح
+                {language === "ar" ? "مسح" : "Clear"}
               </button>
             )}
           </div>
@@ -85,6 +123,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               const Icon = btn.icon;
               const isSelected = activeCategory === btn.id;
               const isAssistant = btn.id === "assistant";
+              const label = getCategoryLabel(btn.id);
 
               return (
                 <button
@@ -105,7 +144,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                   }`}
                 >
                   <Icon className={`w-4 h-4 shrink-0 ${isAssistant ? "text-[#FDE68A]" : isSelected ? "text-[#C5A265]" : "text-[#7B8EA5]"}`} />
-                  <span className="font-quran whitespace-nowrap">{btn.label}</span>
+                  <span className="font-quran whitespace-nowrap">{label}</span>
                 </button>
               );
             })}

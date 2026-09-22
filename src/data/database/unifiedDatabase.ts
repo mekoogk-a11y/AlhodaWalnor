@@ -166,7 +166,7 @@ export function getAllSearchableRecords(): UnifiedSearchResult[] {
       snippet: sec.scholarlyAnswer.slice(0, 200) + "...",
       fullContent: `البيان العلمي:\n${sec.scholarlyAnswer}\n\nالأدلة من القرآن:\n${quranText}\n\nالأدلة من السنة:\n${hadithText}\n\nأقوال أئمة التفسير:\n${quotesText}`,
       primaryReference: "موسوعة درء التعارض ونفي الاختلاف عن القرآن الكريم",
-      tags: ["تناقضات القرآن", "سورة فصلت", "الجمع بين الآيات", "أيام الخلق", sec.title],
+      tags: ["إحكام القرآن", "سورة فصلت", "الجمع بين الآيات", "أيام الخلق", sec.title],
     });
   });
 

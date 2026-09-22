@@ -91,5 +91,15 @@ export interface ChatMessage {
     type: string;
     snippet: string;
   }[];
+  visuals?: {
+    id: string;
+    title: string;
+    subtitle: string;
+    category: string;
+    referenceSource: string;
+    caption: string;
+    svgGraphic: string;
+    details: string;
+  }[];
   grounded?: boolean;
 }

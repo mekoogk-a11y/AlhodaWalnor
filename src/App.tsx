@@ -12,9 +12,11 @@ import { FloatingAudioPlayer } from "./components/FloatingAudioPlayer";
 import { Footer } from "./components/Footer";
 import { misconceptionsDatabase } from "./data/misconceptionsData";
 import { CategoryId } from "./types";
-import { Sparkles, ArrowUp, Search, BookOpen, FileText, Bookmark } from "lucide-react";
+import { Sparkles, ArrowUp } from "lucide-react";
+import { useLanguage } from "./i18n/LanguageContext";
 
 export default function App() {
+  const { t, isRTL } = useLanguage();
   const [currentTab, setCurrentTab] = useState<NavTabType>("main-article");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryId>("all");
@@ -61,7 +63,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF7F2] text-[#0F1D36] flex flex-col font-sans selection:bg-[#C5A265]/20 selection:text-[#0F1D36]">
+    <div
+      className="min-h-screen bg-[#FAF7F2] text-[#0F1D36] flex flex-col font-sans selection:bg-[#C5A265]/20 selection:text-[#0F1D36]"
+      dir={isRTL ? "rtl" : "ltr"}
+    >
       {/* Top Navbar */}
       <Navbar
         currentTab={currentTab}
@@ -92,7 +97,7 @@ export default function App() {
                 : "text-[#4B5E75] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
             }`}
           >
-            المقال الموسوعي: تناقضات القرآن (11 مبحثاً)
+            {t.tabs.scholarlyStudies}
           </button>
 
           <button
@@ -103,7 +108,7 @@ export default function App() {
                 : "text-[#4B5E75] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
             }`}
           >
-            موسوعة الشبهات والردود
+            {t.tabs.directory}
           </button>
 
           <button
@@ -114,7 +119,7 @@ export default function App() {
                 : "text-[#4B5E75] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
             }`}
           >
-            المحرك المعرفي الشامل (9 علوم)
+            {t.tabs.searchEngine}
           </button>
 
           <button
@@ -125,7 +130,7 @@ export default function App() {
                 : "text-[#4B5E75] hover:text-[#0F1D36] hover:bg-[#FAF7F2]"
             }`}
           >
-            المنهج العلمي
+            {t.tabs.methodology}
           </button>
         </div>
       </div>
@@ -155,11 +160,11 @@ export default function App() {
       </main>
 
       {/* Floating Smart Assistant Button */}
-      <div className="fixed bottom-6 left-6 z-40">
+      <div className={`fixed bottom-6 z-40 ${isRTL ? "left-6" : "right-6"}`}>
         <button
           onClick={() => handleOpenAssistantWithQuery()}
           className="group px-4 py-3 rounded-2xl bg-[#0F1D36] hover:bg-[#192F50] text-[#FDE68A] shadow-xl border-2 border-[#C5A265]/70 flex items-center gap-2.5 transition-all duration-300 hover:scale-105 cursor-pointer"
-          title="افتح مساعد الهدى والنور"
+          title={t.assistant.title}
         >
           <div className="relative">
             <Sparkles className="w-5 h-5 text-[#FDE68A] group-hover:rotate-12 transition-transform" />
@@ -167,7 +172,7 @@ export default function App() {
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
           </div>
           <span className="text-xs sm:text-sm font-bold font-quran text-[#FAF7F2]">
-            مساعد الهدى والنور
+            {t.assistant.title}
           </span>
         </button>
       </div>
@@ -179,7 +184,9 @@ export default function App() {
       {showScrollTop && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-40 p-3 rounded-2xl bg-white border border-[#E2DACF] text-[#0F1D36] shadow-md hover:bg-[#FAF7F2] transition-all cursor-pointer"
+          className={`fixed bottom-6 z-40 p-3 rounded-2xl bg-white border border-[#E2DACF] text-[#0F1D36] shadow-md hover:bg-[#FAF7F2] transition-all cursor-pointer ${
+            isRTL ? "right-6" : "left-6"
+          }`}
           aria-label="العودة لأعلى الصفحة"
         >
           <ArrowUp className="w-5 h-5" />

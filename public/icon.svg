@@ -1,0 +1,35 @@
+<svg width="512" height="512" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1728" />
+      <stop offset="1" stop-color="#152744" />
+    </linearGradient>
+    <radialGradient id="dawnGlow" cx="32" cy="22" r="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDE68A" stop-opacity="0.9" />
+      <stop offset="0.45" stop-color="#D4AF37" stop-opacity="0.6" />
+      <stop offset="1" stop-color="#0B1728" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="pathGrad" x1="32" y1="24" x2="32" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDFBF7" stop-opacity="0.95" />
+      <stop offset="0.3" stop-color="#F3E5AB" stop-opacity="0.8" />
+      <stop offset="1" stop-color="#C5A265" stop-opacity="0.3" />
+    </linearGradient>
+    <linearGradient id="goldBorder" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E6CA85" />
+      <stop offset="0.5" stop-color="#C5A265" />
+      <stop offset="1" stop-color="#9A7B38" />
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="15" fill="url(#bgGrad)" stroke="url(#goldBorder)" stroke-width="1.5" />
+  <path d="M16 54V30C16 21.1634 23.1634 14 32 14C40.8366 14 48 21.1634 48 30V54" stroke="#C5A265" stroke-width="1" stroke-opacity="0.35" stroke-dasharray="2 2" />
+  <circle cx="32" cy="24" r="16" fill="url(#dawnGlow)" />
+  <path d="M32 10V18" stroke="#FDE68A" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.8" />
+  <path d="M22 14L27 20" stroke="#FDE68A" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.7" />
+  <path d="M42 14L37 20" stroke="#FDE68A" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.7" />
+  <path d="M15 24H23" stroke="#FDE68A" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.5" />
+  <path d="M41 24H49" stroke="#FDE68A" stroke-width="1.2" stroke-linecap="round" stroke-opacity="0.5" />
+  <path d="M20 54L29 25H35L44 54H20Z" fill="url(#pathGrad)" opacity="0.8" />
+  <line x1="32" y1="25" x2="32" y2="54" stroke="#0F1D36" stroke-width="1.2" stroke-opacity="0.4" stroke-dasharray="3 2" />
+  <path d="M19 40C25 36.5 30 37.5 32 40.5C34 37.5 39 36.5 45 40V46C39 42.5 34 43.5 32 46.5C30 43.5 25 42.5 19 46V40Z" fill="#FAF7F2" stroke="#0F1D36" stroke-width="0.8" />
+  <line x1="32" y1="40.5" x2="32" y2="46.5" stroke="#C5A265" stroke-width="1" />
+</svg>

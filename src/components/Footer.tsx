@@ -2,6 +2,8 @@ import React from "react";
 import { Logo } from "./Logo";
 import { Sparkles, Shield, BookOpen, ExternalLink, Heart, MessageCircle, Phone } from "lucide-react";
 import { CategoryId } from "../types";
+import { PWAInstallButton } from "./PWAInstallButton";
+import { useLanguage } from "../i18n/LanguageContext";
 
 interface FooterProps {
   onOpenAssistant: () => void;
@@ -14,8 +16,9 @@ export const Footer: React.FC<FooterProps> = ({
   onSelectCategory,
   onTabChange,
 }) => {
+  const { t, isRTL } = useLanguage();
   return (
-    <footer className="mt-20 border-t border-[#EAE3D9] bg-white text-[#2B3F56]">
+    <footer className="mt-20 border-t border-[#EAE3D9] bg-white text-[#2B3F56]" dir={isRTL ? "rtl" : "ltr"}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
           {/* Col 1: Identity */}
@@ -30,8 +33,10 @@ export const Footer: React.FC<FooterProps> = ({
                 className="px-4 py-2 rounded-xl bg-[#0F1D36] hover:bg-[#1C3254] text-[#FDE68A] text-xs font-bold inline-flex items-center gap-2 transition-colors cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#FDE68A]" />
-                <span>محاورة مساعد الهدى والنور</span>
+                <span>{t.nav.assistant}</span>
               </button>
+
+              <PWAInstallButton />
             </div>
           </div>
 
@@ -46,7 +51,7 @@ export const Footer: React.FC<FooterProps> = ({
                   onClick={() => onTabChange("main-article")}
                   className="hover:text-[#0F1D36] transition-colors cursor-pointer"
                 >
-                  البحث الأول: دعوى تناقضات القرآن
+                  {t.tabs.scholarlyStudies}
                 </button>
               </li>
               <li>
