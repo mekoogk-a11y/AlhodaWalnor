@@ -35,14 +35,18 @@ class AudioTTSController {
     this.listeners.forEach((cb) => cb(state));
   }
 
-  public speak(text: string, title?: string) {
+  public speak(
+    text: string,
+    title?: string,
+    options?: { pitch?: number; rate?: number; forceRestart?: boolean; preferMale?: boolean }
+  ) {
     if (!this.synth) {
-      alert("خاصية القراءة الصوتية غير مدعومة في هذا المتصفح.");
+      console.warn("Speech synthesis is not supported in this environment.");
       return;
     }
 
-    // If currently speaking the exact same text, toggle pause/resume
-    if (this.isSpeaking && this.currentText === (title || text)) {
+    // If currently speaking the exact same text and not forcing restart, toggle pause/resume
+    if (!options?.forceRestart && this.isSpeaking && this.currentText === (title || text)) {
       if (this.isPaused) {
         this.resume();
       } else {
@@ -65,14 +69,33 @@ class AudioTTSController {
 
     this.currentText = title || text;
     this.currentUtterance = new SpeechSynthesisUtterance(cleanedText);
-    this.currentUtterance.rate = this.currentRate;
+    this.currentUtterance.rate = options?.rate ?? this.currentRate;
+    if (options?.pitch !== undefined) {
+      this.currentUtterance.pitch = options.pitch;
+    }
     this.currentUtterance.lang = "ar-SA";
 
-    // Try finding an Arabic voice
+    // Try finding an Arabic voice (preferring male if requested)
     const voices = this.synth.getVoices();
-    const arabicVoice =
-      voices.find((v) => v.lang.startsWith("ar")) ||
-      voices.find((v) => v.name.toLowerCase().includes("arabic") || v.name.includes("عربي"));
+    let arabicVoice: SpeechSynthesisVoice | undefined;
+    if (options?.preferMale) {
+      arabicVoice = voices.find(
+        (v) =>
+          v.lang.startsWith("ar") &&
+          (v.name.toLowerCase().includes("male") ||
+            v.name.toLowerCase().includes("maged") ||
+            v.name.toLowerCase().includes("tarik") ||
+            v.name.toLowerCase().includes("naayf") ||
+            v.name.includes("رجل") ||
+            v.name.includes("ماجد") ||
+            v.name.includes("طارق"))
+      );
+    }
+    if (!arabicVoice) {
+      arabicVoice =
+        voices.find((v) => v.lang.startsWith("ar")) ||
+        voices.find((v) => v.name.toLowerCase().includes("arabic") || v.name.includes("عربي"));
+    }
     if (arabicVoice) {
       this.currentUtterance.voice = arabicVoice;
     }

@@ -12,6 +12,7 @@ import {
   Library,
   Sparkles,
   ShieldAlert,
+  Mic,
 } from "lucide-react";
 import { CategoryId } from "../types";
 import { useLanguage } from "../i18n/LanguageContext";
@@ -22,6 +23,7 @@ interface HeroSectionProps {
   activeCategory: CategoryId;
   onSelectCategory: (id: CategoryId) => void;
   onOpenAssistant: () => void;
+  onOpenSudaneseAd?: () => void;
 }
 
 const CATEGORY_LABELS_AR: Record<CategoryId, string> = {
@@ -71,6 +73,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   activeCategory,
   onSelectCategory,
   onOpenAssistant,
+  onOpenSudaneseAd,
 }) => {
   const { t, language, isRTL } = useLanguage();
 
@@ -150,6 +153,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             })}
           </div>
         </div>
+
+        {/* Sudanese Voice Ad Feature CTA */}
+        {onOpenSudaneseAd && (
+          <div className="pt-1 flex items-center justify-center">
+            <button
+              onClick={onOpenSudaneseAd}
+              className="group inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-[#0F1D36] via-[#1A2E4C] to-[#0F1D36] text-[#FDE68A] text-xs sm:text-sm font-bold border border-[#C5A265]/70 shadow-sm hover:scale-105 hover:border-[#C5A265] transition-all cursor-pointer"
+            >
+              <Mic className="w-4 h-4 text-[#FDE68A] animate-pulse" />
+              <span>🎙️ استمع للإعلان الصوتي الحماسي (بالعامية السودانية)</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#C5A265] text-[#0F1D36] font-extrabold">
+                صوت رجل 🇸🇩
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </section>
   );

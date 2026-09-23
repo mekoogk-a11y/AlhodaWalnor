@@ -8,6 +8,7 @@ import { AboutMethodologyView } from "./components/AboutMethodologyView";
 import { AssistantModal } from "./components/AssistantModal";
 import { BookmarksDrawer } from "./components/BookmarksDrawer";
 import { AdminDashboardModal } from "./components/AdminDashboardModal";
+import { SudaneseVoiceAdModal } from "./components/SudaneseVoiceAdModal";
 import { FloatingAudioPlayer } from "./components/FloatingAudioPlayer";
 import { Footer } from "./components/Footer";
 import { misconceptionsDatabase } from "./data/misconceptionsData";
@@ -23,6 +24,7 @@ export default function App() {
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isSudaneseAdOpen, setIsSudaneseAdOpen] = useState(false);
   const [assistantInitialQuery, setAssistantInitialQuery] = useState("");
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -84,6 +86,7 @@ export default function App() {
         activeCategory={activeCategory}
         onSelectCategory={handleSelectCategory}
         onOpenAssistant={() => handleOpenAssistantWithQuery()}
+        onOpenSudaneseAd={() => setIsSudaneseAdOpen(true)}
       />
 
       {/* Navigation Sub-Tabs Bar */}
@@ -210,6 +213,12 @@ export default function App() {
       <AdminDashboardModal
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
+      />
+
+      {/* Sudanese Voice Ad Modal */}
+      <SudaneseVoiceAdModal
+        isOpen={isSudaneseAdOpen}
+        onClose={() => setIsSudaneseAdOpen(false)}
       />
 
       {/* Footer */}
